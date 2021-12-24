@@ -8,6 +8,8 @@ let accept2 = false;
 
 let input1, input2;
 
+let socket;
+
 // let fidget1 = "";
 // let fidget2 = "";
 
@@ -21,15 +23,12 @@ async function addFidgets() {
   if (mouseY > height / 2) {
     const formattedName = input1.value.split(/\s+/).join("");
     console.log(formattedName);
+    socket.emit("addFidget", {
+      name: formattedName,
+    });
     const file = await fetch(`/getFidget/${formattedName}`);
     const blob = await file.blob();
     player1.addFidget(createImg(URL.createObjectURL(blob), "fidget").hide());
-  } else {
-    const formattedName = input2.value.split(/\s+/).join("");
-    console.log(formattedName);
-    const file = await fetch(`/getFidget/${formattedName}`);
-    const blob = await file.blob();
-    player2.addFidget(createImg(URL.createObjectURL(blob), "fidget").hide());
   }
   // console.log(player1);
   // console.log(player2);
@@ -50,9 +49,20 @@ async function addFidgets() {
 function setup() {
   createCanvas(windowWidth, 400).mousePressed(addFidgets);
   const acceptB1 = document.body.querySelector(".accept1");
-  const acceptB2 = document.body.querySelector(".accept2");
   input1 = document.body.querySelector(".fidget1");
-  input2 = document.body.querySelector(".fidget2");
+
+  socket = io();
+
+  socket.on("accept", () => player2.accept());
+
+  socket.on("disconnected", () => player2.clear());
+
+  socket.on("addFidget", async (data) => {
+    console.log(data.name);
+    const file = await fetch(`/getFidget/${data.name}`);
+    const blob = await file.blob();
+    player2.addFidget(createImg(URL.createObjectURL(blob), "fidget").hide());
+  });
 
   //createButton("Decline").mousePressed
   // const submit1 = document.body.querySelector(".submit1");
@@ -66,12 +76,7 @@ function setup() {
 
   acceptB1.addEventListener("click", () => {
     player1.accept();
-    if (!accept2) return;
-    //[fidgets2, fidgets1] = [fidgets1, fidgets2];
-  });
-  acceptB2.addEventListener("click", () => {
-    player2.accept();
-    if (!accept1) return;
+    socket.emit("accept");
     //[fidgets2, fidgets1] = [fidgets1, fidgets2];
   });
   //fidget.resize(100, 100);

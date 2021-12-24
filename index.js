@@ -1,4 +1,5 @@
 import express from "express";
+import { Server } from "socket.io";
 import * as fs from "fs/promises";
 import * as env from "dotenv";
 const app = express();
@@ -9,11 +10,13 @@ let fidgets = [];
 
 const port = process.env.PORT || 3000;
 
-app.listen(port, async () => {
+const server = app.listen(port, async () => {
   console.log(`connecting at port ${port}`);
   fidgets = await fs.readdir("./fidgets");
 });
 app.use(express.static("public"));
+
+const io = new Server(server);
 
 function compareStrings(a, b) {
   let sum = 0;
@@ -53,7 +56,7 @@ function closestFile(path) {
         closestPath = fidgets[i];
       }
     } else {
-      // actually slice out chunks from the fidget path (the one that we are looping through right now));
+      //actually slice out chunks from the fidget path (the one that we are looping through right now));
       for (let j = 0; j < name.length; j++) {
         const chunk = name.substring(j, j + path.length);
         const sum = compareStrings(chunk, path);
@@ -92,5 +95,22 @@ app.get("/getFidget/", (req, res) => {
   console.log(`${fidgets[i]}`);
   res.sendFile(`${fidgets[i]}`, {
     root: "./fidgets",
+  });
+});
+
+io.sockets.on("connection", (socket) => {
+  console.log("new connection");
+  console.log(socket.id);
+
+  socket.on("accept", () => socket.broadcast.emit("accept"));
+
+  socket.on("addFidget", (data) => {
+    const { name } = data;
+    socket.broadcast.emit("addFidget", { name });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("client has disconnected :(");
+    socket.broadcast.emit("disconnected");
   });
 });
